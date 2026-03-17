@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
+import '../providers/group_provider.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../activity/providers/activity_provider.dart';
+import '../../notifications/providers/notification_provider.dart';
 
 class JoinGroupScreen extends StatefulWidget {
   const JoinGroupScreen({super.key});
@@ -12,6 +17,12 @@ class JoinGroupScreen extends StatefulWidget {
 
 class _JoinGroupScreenState extends State<JoinGroupScreen> {
   final _codeController = TextEditingController();
+
+  @override
+  void dispose() {
+    _codeController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,8 +56,8 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
               style: AppTypography.h2.copyWith(letterSpacing: 8),
               decoration: InputDecoration(
                 hintText: 'XXXXXX',
-                hintStyle: TextStyle(color: AppColors.lightTextSecondary.withValues(alpha: 0.3)),
-                helperText: 'Enter the 6-character code',
+                hintStyle: TextStyle(color: AppColors.lightTextSecondary.withOpacity(0.3)),
+                helperText: 'Enter the invite code (e.g. FAM789)',
               ),
               textCapitalization: TextCapitalization.characters,
               maxLength: 6,
@@ -55,7 +66,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
             ElevatedButton(
               onPressed: () {
                 if (_codeController.text.length == 6) {
-                  _showJoinConfirmation(context);
+                  _findAndConfirmGroup(context);
                 }
               },
               child: const Text('Find Group'),
@@ -67,7 +78,20 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
     );
   }
 
-  void _showJoinConfirmation(BuildContext context) {
+  void _findAndConfirmGroup(BuildContext context) {
+    final groupProvider = Provider.of<GroupProvider>(context, listen: false);
+    final group = groupProvider.groups.firstWhere(
+      (g) => g['inviteCode'] == _codeController.text,
+      orElse: () => {},
+    );
+
+    if (group.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid invite code. Please try FAM789 or TECH12.')),
+      );
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -83,26 +107,46 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
+                color: AppColors.primary.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.groups_rounded, color: AppColors.primary, size: 40),
             ),
             const SizedBox(height: 24),
-            Text('Found: Business Growth Circle', style: AppTypography.h3),
+            Text('Found: ${group['name']}', style: AppTypography.h3),
             const SizedBox(height: 8),
             Text(
-              'Admin: Sarah Johnson\n12 Members • 50,000 XAF Monthly',
+              'Admin: ${group['admin']}\n${group['members']} Members • ${group['amount']} ${group['frequency']}',
               textAlign: TextAlign.center,
               style: AppTypography.bodyMedium.copyWith(color: AppColors.lightTextSecondary),
             ),
             const SizedBox(height: 32),
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(context);
+                final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                final activityProvider = Provider.of<ActivityProvider>(context, listen: false);
+                final notificationProvider = Provider.of<NotificationProvider>(context, listen: false);
+                
+                final userName = '${authProvider.userProfile?['firstName']} ${authProvider.userProfile?['lastName']}';
+
+                groupProvider.joinGroupByCode(_codeController.text, userName);
+
+                activityProvider.addActivity({
+                  'type': 'group_joined',
+                  'title': 'Joined Group',
+                  'subtitle': 'You joined ${group['name']}',
+                  'amount': group['amount'],
+                });
+
+                notificationProvider.addNotification({
+                  'title': 'Joined Successfully',
+                  'message': 'You are now a member of ${group['name']}.',
+                });
+
+                Navigator.pop(context); // Close bottom sheet
                 context.go('/groups');
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Successfully joined Business Growth Circle!')),
+                  SnackBar(content: Text('Successfully joined ${group['name']}!')),
                 );
               },
               child: const Text('Join this Group'),

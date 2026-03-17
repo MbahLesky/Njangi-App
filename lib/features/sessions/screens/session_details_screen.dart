@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
+import '../providers/session_provider.dart';
+import '../../activity/providers/activity_provider.dart';
 
 class SessionDetailsScreen extends StatelessWidget {
   final String sessionId;
@@ -15,9 +18,24 @@ class SessionDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sessionProvider = Provider.of<SessionProvider>(context);
+    final sessions = sessionProvider.getSessionsForGroup(groupId);
+    final session = sessions.firstWhere((s) => s['id'] == sessionId, orElse: () => {});
+    final contributions = sessionProvider.getContributionsForSession(sessionId);
+
+    if (session.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(),
+        body: const Center(child: Text('Session not found')),
+      );
+    }
+
+    final bool isOngoing = session['status'] == 'Ongoing';
+    final bool isCompleted = session['isCompleted'] ?? false;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Session #$sessionId', style: AppTypography.h3),
+        title: Text(session['name'], style: AppTypography.h3),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -28,7 +46,7 @@ class SessionDetailsScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppColors.primary,
+                color: isCompleted ? AppColors.success : AppColors.primary,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Column(
@@ -44,7 +62,7 @@ class SessionDetailsScreen extends StatelessWidget {
                             style: AppTypography.bodyMedium.copyWith(color: Colors.white70),
                           ),
                           Text(
-                            '600,000 XAF',
+                            session['totalPayout'] ?? '0 XAF',
                             style: AppTypography.h2.copyWith(color: Colors.white),
                           ),
                         ],
@@ -52,7 +70,7 @@ class SessionDetailsScreen extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
+                          color: Colors.white.withOpacity(0.2),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(Icons.stars, color: Colors.white, size: 32),
@@ -63,9 +81,9 @@ class SessionDetailsScreen extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _statusInfo('Recipient', 'Sarah Johnson'),
-                      _statusInfo('Date', 'April 12, 2026'),
-                      _statusInfo('Status', 'Ongoing'),
+                      _statusInfo('Recipient', session['recipient'] ?? 'TBD'),
+                      _statusInfo('Date', session['date'] ?? 'TBD'),
+                      _statusInfo('Status', session['status'] ?? 'Pending'),
                     ],
                   ),
                 ],
@@ -75,22 +93,44 @@ class SessionDetailsScreen extends StatelessWidget {
 
             Text('Contribution Progress', style: AppTypography.h3),
             const SizedBox(height: 16),
-            _buildProgressItem('Mbah Lesky', true),
-            _buildProgressItem('John Doe', true),
-            _buildProgressItem('Amadou Diallo', false),
-            _buildProgressItem('Alice Wong', false),
-            _buildProgressItem('Bob Smith', false),
-            _buildProgressItem('Sarah Johnson', true),
+            
+            if (contributions.isEmpty)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Text(
+                    'No contributions recorded yet.',
+                    style: TextStyle(color: AppColors.lightTextSecondary),
+                  ),
+                ),
+              )
+            else
+              ...contributions.map((c) => _buildProgressItem(c['member'], c['paid'], c['amount'], c['date'])),
 
             const SizedBox(height: 40),
-            if (true) // If Admin
+            
+            if (isOngoing)
               ElevatedButton(
-                onPressed: () => _confirmPayout(context),
+                onPressed: () => _confirmPayout(context, session),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.secondary,
                   foregroundColor: AppColors.lightTextPrimary,
                 ),
                 child: const Text('Confirm & Release Payout'),
+              ),
+            
+            if (isCompleted)
+              Center(
+                child: Column(
+                  children: [
+                    const Icon(Icons.check_circle, color: AppColors.success, size: 48),
+                    const SizedBox(height: 8),
+                    Text(
+                      'This session is completed',
+                      style: AppTypography.bodyLarge.copyWith(color: AppColors.success, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
               ),
           ],
         ),
@@ -108,9 +148,9 @@ class SessionDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProgressItem(String name, bool paid) {
+  Widget _buildProgressItem(String name, bool paid, String amount, String date) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
           CircleAvatar(
@@ -119,11 +159,19 @@ class SessionDetailsScreen extends StatelessWidget {
             child: Text(name[0], style: const TextStyle(fontSize: 12)),
           ),
           const SizedBox(width: 12),
-          Expanded(child: Text(name, style: AppTypography.bodyMedium)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: AppTypography.bodyMedium),
+                Text('$amount • $date', style: AppTypography.caption),
+              ],
+            ),
+          ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: (paid ? AppColors.success : AppColors.warning).withValues(alpha: 0.1),
+              color: (paid ? AppColors.success : AppColors.warning).withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
@@ -139,18 +187,33 @@ class SessionDetailsScreen extends StatelessWidget {
     );
   }
 
-  void _confirmPayout(BuildContext context) {
+  void _confirmPayout(BuildContext context, Map<String, dynamic> session) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Confirm Payout?'),
-        content: const Text('This will record the payout as received by Sarah Johnson and advance the cycle to the next session.'),
+        content: Text('This will record the payout of ${session['totalPayout']} as received by ${session['recipient']} and advance the cycle to the next session.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
-              context.pop();
+              final sessionProvider = Provider.of<SessionProvider>(context, listen: false);
+              final activityProvider = Provider.of<ActivityProvider>(context, listen: false);
+
+              sessionProvider.completeSession(groupId, sessionId);
+
+              activityProvider.addActivity({
+                'type': 'payout',
+                'title': 'Payout Confirmed',
+                'subtitle': '${session['recipient']} received payout for ${session['name']}',
+                'amount': session['totalPayout'],
+              });
+
+              Navigator.pop(context); // Close dialog
+              context.pop(); // Go back
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Payout confirmed and session completed!')),
+              );
             },
             child: const Text('Confirm'),
           ),

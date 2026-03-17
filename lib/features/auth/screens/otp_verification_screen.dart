@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pinput/pinput.dart';
+import 'package:provider/provider.dart';
 import 'dart:async';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
+import '../providers/auth_provider.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
   const OtpVerificationScreen({super.key});
@@ -46,8 +48,28 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     super.dispose();
   }
 
+  Future<void> _handleVerification() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final isValid = await authProvider.verifyOtp(_pinController.text);
+    
+    if (!mounted) return;
+
+    if (isValid) {
+      _showSuccessDialog();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Invalid OTP. Please try 123456.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      _pinController.clear();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
     final defaultPinTheme = PinTheme(
       width: 56,
       height: 56,
@@ -92,8 +114,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   children: [
                     const TextSpan(text: 'Enter the 6-digit code sent to '),
                     TextSpan(
-                      text: '+237 670 000 000',
-                      style: TextStyle(
+                      text: authProvider.phoneNumber ?? '+237 670 000 000',
+                      style: const TextStyle(
                         color: AppColors.lightTextPrimary,
                         fontWeight: FontWeight.bold,
                       ),
@@ -110,10 +132,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   defaultPinTheme: defaultPinTheme,
                   focusedPinTheme: focusedPinTheme,
                   hapticFeedbackType: HapticFeedbackType.lightImpact,
-                  onCompleted: (pin) {
-                    // Logic for successful verification
-                    _showSuccessDialog();
-                  },
+                  onCompleted: (pin) => _handleVerification(),
                   cursor: Column(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
@@ -158,12 +177,16 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               ),
               const Spacer(),
               ElevatedButton(
-                onPressed: () {
-                  if (_pinController.text.length == 6) {
-                    _showSuccessDialog();
-                  }
-                },
-                child: const Text('Verify and Continue'),
+                onPressed: authProvider.isLoading || _pinController.text.length < 6
+                    ? null
+                    : _handleVerification,
+                child: authProvider.isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Text('Verify and Continue'),
               ),
               const SizedBox(height: 24),
             ],
@@ -186,7 +209,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.success.withValues(alpha: 0.1),
+                color: AppColors.success.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -201,12 +224,10 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               style: AppTypography.h3,
             ),
             const SizedBox(height: 8),
-            Text(
+            const Text(
               'Your phone number has been verified successfully.',
               textAlign: TextAlign.center,
-              style: AppTypography.bodyMedium.copyWith(
-                color: AppColors.lightTextSecondary,
-              ),
+              style: TextStyle(color: AppColors.lightTextSecondary),
             ),
             const SizedBox(height: 32),
             ElevatedButton(

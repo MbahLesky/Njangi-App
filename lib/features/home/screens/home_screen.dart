@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
-import '../../../app/constants/mock_data.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../activity/providers/activity_provider.dart';
+import '../../groups/providers/group_provider.dart';
 import '../widgets/summary_card.dart';
 import '../widgets/quick_action_button.dart';
 import '../widgets/activity_preview_item.dart';
@@ -11,6 +15,13 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final activityProvider = Provider.of<ActivityProvider>(context);
+    final groupProvider = Provider.of<GroupProvider>(context);
+    
+    final userName = authProvider.userProfile?['firstName'] ?? 'User';
+    final recentActivities = activityProvider.activities.take(3).toList();
+
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -26,7 +37,7 @@ class HomeScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Hello, ${MockData.userName} 👋',
+                        'Hello, $userName 👋',
                         style: AppTypography.h2,
                       ),
                       Text(
@@ -37,10 +48,16 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                    child: const Icon(Icons.person, color: AppColors.primary),
+                  GestureDetector(
+                    onTap: () => context.go('/profile'),
+                    child: CircleAvatar(
+                      radius: 24,
+                      backgroundColor: AppColors.primary.withOpacity(0.1),
+                      child: Text(
+                        authProvider.userProfile?['initials'] ?? 'U',
+                        style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -58,7 +75,7 @@ class HomeScreen extends StatelessWidget {
                       color: AppColors.primary,
                     ),
                     const SizedBox(width: 16),
-                    SummaryCard(
+                    const SummaryCard(
                       title: 'Upcoming Payout',
                       amount: '800,000 XAF',
                       subtitle: 'Expected: Apr 15',
@@ -79,17 +96,17 @@ class HomeScreen extends StatelessWidget {
                   QuickActionButton(
                     icon: Icons.add_circle_outline,
                     label: 'Create',
-                    onTap: () {},
+                    onTap: () => context.push('/groups/create'),
                   ),
                   QuickActionButton(
                     icon: Icons.group_add_outlined,
                     label: 'Join',
-                    onTap: () {},
+                    onTap: () => context.push('/groups/join'),
                   ),
                   QuickActionButton(
                     icon: Icons.history_outlined,
                     label: 'History',
-                    onTap: () {},
+                    onTap: () => context.go('/activity'),
                   ),
                   QuickActionButton(
                     icon: Icons.more_horiz,
@@ -106,22 +123,33 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   Text('Recent Activity', style: AppTypography.h3),
                   TextButton(
-                    onPressed: () {},
+                    onPressed: () => context.go('/activity'),
                     child: const Text('View All'),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: MockData.recentActivity.length,
-                separatorBuilder: (context, index) => const Divider(height: 24),
-                itemBuilder: (context, index) {
-                  final activity = MockData.recentActivity[index];
-                  return ActivityPreviewItem(activity: activity);
-                },
-              ),
+              if (recentActivities.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Text(
+                      'No recent activity',
+                      style: TextStyle(color: AppColors.lightTextSecondary),
+                    ),
+                  ),
+                )
+              else
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: recentActivities.length,
+                  separatorBuilder: (context, index) => const Divider(height: 24),
+                  itemBuilder: (context, index) {
+                    final activity = recentActivities[index];
+                    return ActivityPreviewItem(activity: activity);
+                  },
+                ),
             ],
           ),
         ),

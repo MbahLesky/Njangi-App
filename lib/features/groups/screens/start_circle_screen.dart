@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
+import '../providers/group_provider.dart';
+import '../providers/chat_provider.dart';
+import '../../sessions/providers/session_provider.dart';
+import '../../activity/providers/activity_provider.dart';
 
 class StartCircleScreen extends StatefulWidget {
   final String groupId;
@@ -13,14 +18,28 @@ class StartCircleScreen extends StatefulWidget {
 }
 
 class _StartCircleScreenState extends State<StartCircleScreen> {
-  final List<String> _rotationOrder = [
-    'Mbah Lesky',
-    'John Doe',
-    'Sarah Johnson',
-    'Amadou Diallo',
-    'Alice Wong',
-    'Bob Smith',
-  ];
+  late List<String> _rotationOrder;
+  bool _initialized = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      final groupProvider = Provider.of<GroupProvider>(context, listen: false);
+      final group = groupProvider.getGroupById(widget.groupId);
+      
+      // Seed with some dummy members for the rotation
+      _rotationOrder = [
+        group?['admin'] ?? 'Admin',
+        'John Doe',
+        'Sarah Johnson',
+        'Amadou Diallo',
+        'Alice Wong',
+        'Bob Smith',
+      ];
+      _initialized = true;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,9 +95,9 @@ class _StartCircleScreenState extends State<StartCircleScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.warning.withValues(alpha: 0.1),
+                    color: AppColors.warning.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.warning.withValues(alpha: 0.2)),
+                    border: Border.all(color: AppColors.warning.withOpacity(0.2)),
                   ),
                   child: Row(
                     children: [
@@ -95,9 +114,7 @@ class _StartCircleScreenState extends State<StartCircleScreen> {
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: () {
-                    _showConfirmation(context);
-                  },
+                  onPressed: () => _showConfirmation(context),
                   child: const Text('Initialize Circle'),
                 ),
               ],
@@ -109,12 +126,15 @@ class _StartCircleScreenState extends State<StartCircleScreen> {
   }
 
   void _showConfirmation(BuildContext context) {
+    final groupProvider = Provider.of<GroupProvider>(context, listen: false);
+    final group = groupProvider.getGroupById(widget.groupId);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Initialize Circle?'),
-        content: const Text(
-            'This will generate 6 sessions based on the rotation order you set. Members will be notified to start contributions.'),
+        content: Text(
+            'This will generate ${_rotationOrder.length} sessions based on the rotation order you set. Members will be notified to start contributions.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -122,6 +142,29 @@ class _StartCircleScreenState extends State<StartCircleScreen> {
           ),
           ElevatedButton(
             onPressed: () {
+              final sessionProvider = Provider.of<SessionProvider>(context, listen: false);
+              final activityProvider = Provider.of<ActivityProvider>(context, listen: false);
+              final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+
+              sessionProvider.initializeCircle(
+                widget.groupId, 
+                _rotationOrder, 
+                group?['amount'] ?? '0 XAF', 
+                group?['frequency'] ?? 'Monthly'
+              );
+
+              activityProvider.addActivity({
+                'type': 'circle_started',
+                'title': 'Circle Started',
+                'subtitle': 'Njangi circle initialized for ${group?['name']}',
+                'amount': group?['amount'] ?? '',
+              });
+
+              chatProvider.addAnnouncement(
+                widget.groupId, 
+                'New Njangi circle started! Rotation order: ${_rotationOrder.join(", ")}'
+              );
+
               Navigator.pop(context); // Close dialog
               context.pop(); // Go back to group details
               ScaffoldMessenger.of(context).showSnackBar(

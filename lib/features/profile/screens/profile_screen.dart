@@ -1,14 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
-import '../../../app/constants/mock_data.dart';
+import '../../../app/providers/theme_provider.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../providers/profile_provider.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final profileProvider = Provider.of<ProfileProvider>(context);
+    final profile = profileProvider.profile;
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Profile', style: AppTypography.h2),
@@ -37,7 +45,9 @@ class ProfileScreen extends StatelessWidget {
                           shape: BoxShape.circle,
                           border: Border.all(color: AppColors.primary, width: 2),
                         ),
-                        child: const Icon(Icons.person, size: 50, color: AppColors.primary),
+                        child: profile['avatar'] != null 
+                          ? CircleAvatar(backgroundImage: NetworkImage(profile['avatar']))
+                          : const Icon(Icons.person, size: 50, color: AppColors.primary),
                       ),
                       Positioned(
                         bottom: 0,
@@ -54,9 +64,9 @@ class ProfileScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  Text(MockData.userName, style: AppTypography.h3),
+                  Text('${profile['firstName']} ${profile['lastName']}', style: AppTypography.h3),
                   Text(
-                    '+237 670 000 000',
+                    profile['phone'] ?? '+237 670 000 000',
                     style: AppTypography.bodyMedium.copyWith(color: AppColors.lightTextSecondary),
                   ),
                 ],
@@ -68,7 +78,17 @@ class ProfileScreen extends StatelessWidget {
             _buildProfileOption(
               icon: Icons.person_outline,
               title: 'Edit Profile',
-              onTap: () {},
+              onTap: () => _showEditProfileSheet(context),
+            ),
+            _buildProfileOption(
+              icon: themeProvider.isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+              title: 'Dark Mode',
+              trailing: Switch(
+                value: themeProvider.isDarkMode,
+                onChanged: (v) => themeProvider.toggleTheme(),
+                activeColor: AppColors.primary,
+              ),
+              onTap: () => themeProvider.toggleTheme(),
             ),
             _buildProfileOption(
               icon: Icons.notifications_none,
@@ -85,19 +105,16 @@ class ProfileScreen extends StatelessWidget {
               title: 'Help & Support',
               onTap: () {},
             ),
-            _buildProfileOption(
-              icon: Icons.info_outline,
-              title: 'About Njangi',
-              onTap: () {},
-            ),
             const SizedBox(height: 24),
             _buildProfileOption(
               icon: Icons.logout,
               title: 'Logout',
               titleColor: AppColors.error,
               iconColor: AppColors.error,
-              showTrailing: false,
-              onTap: () => context.go('/welcome'),
+              showChevron: false,
+              onTap: () {
+                _showLogoutDialog(context);
+              },
             ),
           ],
         ),
@@ -111,7 +128,8 @@ class ProfileScreen extends StatelessWidget {
     required VoidCallback onTap,
     Color? titleColor,
     Color? iconColor,
-    bool showTrailing = true,
+    bool showChevron = true,
+    Widget? trailing,
   }) {
     return ListTile(
       onTap: onTap,
@@ -119,7 +137,7 @@ class ProfileScreen extends StatelessWidget {
       leading: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: (iconColor ?? AppColors.primary).withValues(alpha: 0.1),
+          color: (iconColor ?? AppColors.primary).withOpacity(0.1),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(icon, color: iconColor ?? AppColors.primary, size: 24),
@@ -131,9 +149,74 @@ class ProfileScreen extends StatelessWidget {
           fontWeight: FontWeight.w500,
         ),
       ),
-      trailing: showTrailing
-          ? const Icon(Icons.chevron_right, color: AppColors.lightTextSecondary)
-          : null,
+      trailing: trailing ?? (showChevron ? const Icon(Icons.chevron_right, color: AppColors.lightTextSecondary) : null),
+    );
+  }
+
+  void _showEditProfileSheet(BuildContext context) {
+    final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+    final firstNameController = TextEditingController(text: profileProvider.profile['firstName']);
+    final lastNameController = TextEditingController(text: profileProvider.profile['lastName']);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Edit Profile', style: AppTypography.h2),
+            const SizedBox(height: 24),
+            TextFormField(
+              controller: firstNameController,
+              decoration: const InputDecoration(labelText: 'First Name'),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: lastNameController,
+              decoration: const InputDecoration(labelText: 'Last Name'),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: () {
+                profileProvider.updateProfile({
+                  'firstName': firstNameController.text,
+                  'lastName': lastNameController.text,
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('Save Changes'),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout?'),
+        content: const Text('Are you sure you want to log out of your account?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              final authProvider = Provider.of<AuthProvider>(context, listen: false);
+              authProvider.logout();
+              Navigator.pop(context);
+              context.go('/welcome');
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
     );
   }
 }

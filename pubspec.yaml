@@ -11,7 +11,7 @@ dependencies:
     sdk: flutter
   cupertino_icons:
   go_router:
-  flutter_riverpod:
+  provider:
   google_fonts:
   flutter_svg:
   intl:
@@ -27,6 +27,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  # assets:
-  #   - assets/icons/
-  #   - assets/images/

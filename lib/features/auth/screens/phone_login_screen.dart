@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:country_code_picker/country_code_picker.dart';
+import 'package:provider/provider.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
+import '../providers/auth_provider.dart';
 
 class PhoneLoginScreen extends StatefulWidget {
   const PhoneLoginScreen({super.key});
@@ -14,7 +16,7 @@ class PhoneLoginScreen extends StatefulWidget {
 class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
-  String _selectedCountryCode = '+237'; // Default for Cameroon (Njangi context)
+  String _selectedCountryCode = '+237'; 
 
   @override
   void dispose() {
@@ -102,7 +104,8 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                 ElevatedButton(
                   onPressed: () {
                     if (_formKey.currentState!.validate()) {
-                      // Navigate to OTP verification
+                      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                      authProvider.setPhoneNumber('$_selectedCountryCode ${_phoneController.text}');
                       context.push('/verify-otp');
                     }
                   },

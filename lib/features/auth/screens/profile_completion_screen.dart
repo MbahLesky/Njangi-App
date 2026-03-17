@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
+import '../providers/auth_provider.dart';
+import '../../profile/providers/profile_provider.dart';
 
 class ProfileCompletionScreen extends StatefulWidget {
   const ProfileCompletionScreen({super.key});
@@ -118,7 +121,18 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                 ElevatedButton(
                   onPressed: () {
                     if (_formKey.currentState!.validate()) {
-                      // Navigate to Home Dashboard
+                      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                      final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+                      
+                      final profileData = {
+                        'firstName': _firstNameController.text,
+                        'lastName': _lastNameController.text,
+                        'email': _emailController.text,
+                      };
+
+                      authProvider.completeProfile(profileData);
+                      profileProvider.updateProfile(profileData);
+                      
                       context.go('/');
                     }
                   },

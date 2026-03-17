@@ -8,7 +8,8 @@ plugins {
 android {
     namespace = "com.example.njangi_app"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // Commenting out ndkVersion to let Gradle detect the best version or skip if not needed
+    // ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
