@@ -121,7 +121,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                     color: AppColors.lightTextSecondary,
                   ),
                   children: [
-                    const TextSpan(text: 'Enter the 6-digit code sent to '),
+                    const TextSpan(text: 'Enter the 6-digit code sent via push notification to '),
                     TextSpan(
                       text: authProvider.phoneNumber ?? '+237 670 000 000',
                       style: const TextStyle(
@@ -132,37 +132,11 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 32),
-              
-              // Code Display & Copy Button
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Your Code', style: AppTypography.caption),
-                        Text('123456', style: AppTypography.h3.copyWith(letterSpacing: 2)),
-                      ],
-                    ),
-                    TextButton.icon(
-                      onPressed: _copyCode,
-                      icon: const Icon(Icons.copy, size: 18),
-                      label: const Text('Copy Code'),
-                      style: TextButton.styleFrom(foregroundColor: AppColors.primary),
-                    ),
-                  ],
-                ),
-              ),
-              
               const SizedBox(height: 40),
+              
+              // Note: The code display container has been removed as per the request 
+              // to send it strictly as a push notification.
+              
               Center(
                 child: Pinput(
                   length: 6,
@@ -186,6 +160,16 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                 ),
               ),
               const SizedBox(height: 40),
+              
+              // Copy Code shortcut for prototype ease
+              TextButton.icon(
+                onPressed: _copyCode,
+                icon: const Icon(Icons.copy, size: 18),
+                label: const Text('Copy code from notification (Mock)'),
+                style: TextButton.styleFrom(foregroundColor: AppColors.lightTextSecondary),
+              ),
+
+              const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -202,7 +186,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                               _timerValue = 60;
                               _startTimer();
                             });
-                            // Mock resend logic
                             authProvider.setPhoneNumber(authProvider.phoneNumber!);
                           }
                         : null,

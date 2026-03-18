@@ -3,6 +3,7 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:flutter/material.dart';
+import 'dart:io';
 
 class LocalNotificationService {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin =
@@ -36,6 +37,14 @@ class LocalNotificationService {
         }
       },
     );
+
+    // Request permissions for Android 13+
+    if (Platform.isAndroid) {
+      await _notificationsPlugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestNotificationsPermission();
+    }
   }
 
   static void _handleNotificationTap(String payload) {
@@ -50,17 +59,22 @@ class LocalNotificationService {
     String? payload,
   }) async {
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'njangi_channel_id',
-      'Njangi Notifications',
-      channelDescription: 'Notifications for Njangi app activities',
+      'njangi_push_channel',
+      'Njangi Push Notifications',
+      channelDescription: 'High priority push notifications for Njangi',
       importance: Importance.max,
       priority: Priority.high,
-      ticker: 'ticker',
+      fullScreenIntent: true,
+      showWhen: true,
     );
 
     const NotificationDetails notificationDetails = NotificationDetails(
       android: androidDetails,
-      iOS: DarwinNotificationDetails(),
+      iOS: DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      ),
     );
 
     await _notificationsPlugin.show(
@@ -79,16 +93,24 @@ class LocalNotificationService {
     required DateTime scheduledTime,
     String? payload,
   }) async {
+    // If time is in the past, don't schedule (or schedule for 5 seconds from now for testing)
+    var finalTime = scheduledTime;
+    if (finalTime.isBefore(DateTime.now())) {
+      finalTime = DateTime.now().add(const Duration(seconds: 5));
+    }
+
     await _notificationsPlugin.zonedSchedule(
       id,
       title,
       body,
-      tz.TZDateTime.from(scheduledTime, tz.local),
+      tz.TZDateTime.from(finalTime, tz.local),
       const NotificationDetails(
         android: AndroidNotificationDetails(
-          'njangi_scheduled_channel_id',
+          'njangi_scheduled_push',
           'Njangi Reminders',
           channelDescription: 'Scheduled reminders for Njangi contributions',
+          importance: Importance.max,
+          priority: Priority.high,
         ),
         iOS: DarwinNotificationDetails(),
       ),
