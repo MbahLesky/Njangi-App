@@ -20,7 +20,10 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _amountController = TextEditingController();
-  String _selectedFrequency = 'Monthly';
+  final _timeController = TextEditingController(text: '18:00');
+  
+  String _selectedFrequency = 'Weekly';
+  String _selectedDeadlineDay = 'Sunday';
   DateTime? _startDate;
 
   @override
@@ -28,6 +31,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     _nameController.dispose();
     _descriptionController.dispose();
     _amountController.dispose();
+    _timeController.dispose();
     super.dispose();
   }
 
@@ -55,30 +59,71 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _descriptionController,
-                maxLines: 3,
+                maxLines: 2,
                 decoration: const InputDecoration(
                   labelText: 'Description',
                   hintText: 'What is this group for?',
                 ),
               ),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: _amountController,
-                decoration: const InputDecoration(
-                  labelText: 'Contribution Amount (XAF)',
-                  prefixIcon: Icon(Icons.money),
-                ),
-                keyboardType: TextInputType.number,
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _amountController,
+                      decoration: const InputDecoration(
+                        labelText: 'Amount (XAF)',
+                        prefixIcon: Icon(Icons.money),
+                      ),
+                      keyboardType: TextInputType.number,
+                      validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: _selectedFrequency,
+                      decoration: const InputDecoration(labelText: 'Frequency'),
+                      items: ['Weekly', 'Monthly']
+                          .map((f) => DropdownMenuItem(value: f, child: Text(f)))
+                          .toList(),
+                      onChanged: (v) => setState(() => _selectedFrequency = v!),
+                    ),
+                  ),
+                ],
               ),
+              const SizedBox(height: 24),
+              Text('Contribution Settings', style: AppTypography.h3),
               const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: _selectedFrequency,
-                decoration: const InputDecoration(labelText: 'Frequency'),
-                items: ['Daily', 'Weekly', 'Bi-weekly', 'Monthly']
-                    .map((f) => DropdownMenuItem(value: f, child: Text(f)))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedFrequency = v!),
+              if (_selectedFrequency == 'Weekly')
+                DropdownButtonFormField<String>(
+                  value: _selectedDeadlineDay,
+                  decoration: const InputDecoration(
+                    labelText: 'Deadline Day of the Week',
+                    prefixIcon: Icon(Icons.calendar_view_day),
+                  ),
+                  items: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+                      .map((d) => DropdownMenuItem(value: d, child: Text(d)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedDeadlineDay = v!),
+                ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _timeController,
+                readOnly: true,
+                decoration: const InputDecoration(
+                  labelText: 'Deadline Time',
+                  prefixIcon: Icon(Icons.access_time),
+                ),
+                onTap: () async {
+                  final time = await showTimePicker(
+                    context: context,
+                    initialTime: TimeOfDay.now(),
+                  );
+                  if (time != null) {
+                    setState(() => _timeController.text = time.format(context));
+                  }
+                },
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -116,6 +161,8 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                       'description': _descriptionController.text,
                       'amount': '${_amountController.text} XAF',
                       'frequency': _selectedFrequency,
+                      'deadlineDay': _selectedDeadlineDay,
+                      'deadlineTime': _timeController.text,
                       'members': 1,
                       'admin': userName,
                       'nextPayout': 'TBD',
@@ -136,13 +183,11 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                     });
 
                     context.pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Group created successfully!')),
-                    );
                   }
                 },
                 child: const Text('Create Group'),
               ),
+              const SizedBox(height: 24),
             ],
           ),
         ),

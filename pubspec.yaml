@@ -9,16 +9,19 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons:
-  go_router:
-  provider:
-  google_fonts:
-  flutter_svg:
-  intl:
-  pinput:
-  country_code_picker:
-  form_builder_validators:
-  animations:
+  cupertino_icons: ^1.0.8
+  go_router: ^14.0.0
+  provider: ^6.1.2
+  google_fonts: ^6.2.1
+  flutter_svg: ^2.0.10+1
+  intl: ^0.20.2
+  pinput: ^5.0.0
+  country_code_picker: ^3.0.0
+  form_builder_validators: ^11.0.0
+  animations: ^2.0.11
+  flutter_local_notifications: ^17.2.2
+  timezone: ^0.9.4
+  flutter_timezone: ^3.0.1
 
 dev_dependencies:
   flutter_test:

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pinput/pinput.dart';
 import 'package:provider/provider.dart';
@@ -67,6 +68,14 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     }
   }
 
+  void _copyCode() {
+    Clipboard.setData(const ClipboardData(text: '123456')).then((_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Code 123456 copied to clipboard!')),
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
@@ -123,6 +132,36 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   ],
                 ),
               ),
+              const SizedBox(height: 32),
+              
+              // Code Display & Copy Button
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Your Code', style: AppTypography.caption),
+                        Text('123456', style: AppTypography.h3.copyWith(letterSpacing: 2)),
+                      ],
+                    ),
+                    TextButton.icon(
+                      onPressed: _copyCode,
+                      icon: const Icon(Icons.copy, size: 18),
+                      label: const Text('Copy Code'),
+                      style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+                    ),
+                  ],
+                ),
+              ),
+              
               const SizedBox(height: 40),
               Center(
                 child: Pinput(
@@ -163,6 +202,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                               _timerValue = 60;
                               _startTimer();
                             });
+                            // Mock resend logic
+                            authProvider.setPhoneNumber(authProvider.phoneNumber!);
                           }
                         : null,
                     child: Text(
@@ -209,7 +250,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.success.withOpacity(0.1),
+                color: AppColors.success.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(

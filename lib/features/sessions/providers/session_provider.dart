@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../app/services/local_notification_service.dart';
 
 class SessionProvider extends ChangeNotifier {
   Map<String, List<Map<String, dynamic>>> _sessionsByGroup = {
@@ -51,6 +52,14 @@ class SessionProvider extends ChangeNotifier {
         'date': 'Just now',
       });
     }
+
+    LocalNotificationService.showNotification(
+      id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      title: 'Contribution Recorded',
+      body: 'Contribution of $amount by $memberName has been logged.',
+      payload: '/activity',
+    );
+
     notifyListeners();
   }
 
@@ -59,18 +68,43 @@ class SessionProvider extends ChangeNotifier {
     if (groupSessions != null) {
       final index = groupSessions.indexWhere((s) => s['id'] == sessionId);
       if (index != -1) {
+        final session = groupSessions[index];
         groupSessions[index] = {
-          ...groupSessions[index],
+          ...session,
           'isCompleted': true,
           'status': 'Completed',
         };
 
+        LocalNotificationService.showNotification(
+          id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          title: 'Payout Confirmed',
+          body: '${session['recipient']} has received the payout for ${session['name']}.',
+          payload: '/groups/$groupId/sessions/$sessionId',
+        );
+
         // Advance next session to ongoing
         if (index + 1 < groupSessions.length) {
+          final nextSession = groupSessions[index + 1];
           groupSessions[index + 1] = {
-            ...groupSessions[index + 1],
+            ...nextSession,
             'status': 'Ongoing',
           };
+
+          LocalNotificationService.showNotification(
+            id: (DateTime.now().millisecondsSinceEpoch ~/ 1000) + 1,
+            title: 'New Session Started',
+            body: '${nextSession['name']} is now ongoing. Recipient: ${nextSession['recipient']}.',
+            payload: '/groups/$groupId/sessions/${nextSession['id']}',
+          );
+          
+          // Schedule a reminder for 2 days from now (mock)
+          LocalNotificationService.scheduleNotification(
+            id: (DateTime.now().millisecondsSinceEpoch ~/ 1000) + 2,
+            title: 'Contribution Reminder',
+            body: 'Your contribution for ${nextSession['name']} is due soon.',
+            scheduledTime: DateTime.now().add(const Duration(days: 2)),
+            payload: '/groups/$groupId/sessions/${nextSession['id']}',
+          );
         }
         notifyListeners();
       }
@@ -91,6 +125,14 @@ class SessionProvider extends ChangeNotifier {
       });
     }
     _sessionsByGroup[groupId] = sessions;
+
+    LocalNotificationService.showNotification(
+      id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      title: 'Circle Initialized',
+      body: 'Payout rotation set for $groupId. First recipient: ${rotationOrder[0]}.',
+      payload: '/groups/$groupId',
+    );
+
     notifyListeners();
   }
 }

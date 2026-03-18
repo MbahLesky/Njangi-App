@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../app/services/local_notification_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   bool _isAuthenticated = false;
@@ -16,6 +17,15 @@ class AuthProvider extends ChangeNotifier {
 
   void setPhoneNumber(String phone) {
     _phoneNumber = phone;
+    
+    // Trigger local notification for OTP
+    LocalNotificationService.showNotification(
+      id: 0,
+      title: 'Verification Code',
+      body: 'Your Njangi code is $_mockOtp',
+      payload: '/verify-otp',
+    );
+    
     notifyListeners();
   }
 
@@ -44,6 +54,14 @@ class AuthProvider extends ChangeNotifier {
       'initials': '${profileData['firstName'][0]}${profileData['lastName'][0]}',
     };
     _isAuthenticated = true;
+    
+    LocalNotificationService.showNotification(
+      id: 1,
+      title: 'Welcome to Njangi!',
+      body: 'Hi ${profileData['firstName']}, your account has been created.',
+      payload: '/',
+    );
+    
     notifyListeners();
   }
 

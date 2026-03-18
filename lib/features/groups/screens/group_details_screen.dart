@@ -61,13 +61,24 @@ class GroupDetailsScreen extends StatelessWidget {
             const Center(child: Text('Financial reports and statistics.')),
           ],
         ),
-        floatingActionButton: _buildFloatingActionButton(context, group),
+        floatingActionButton: Builder(
+          builder: (context) {
+            final tabController = DefaultTabController.of(context);
+            return ListenableBuilder(
+              listenable: tabController,
+              builder: (context, _) {
+                // Hide FAB on Chat tab (index 3)
+                if (tabController.index == 3) return const SizedBox.shrink();
+                return _buildFloatingActionButton(context, group);
+              },
+            );
+          },
+        ),
       ),
     );
   }
 
-  Widget? _buildFloatingActionButton(BuildContext context, Map<String, dynamic> group) {
-    // Only show "Start Circle" if no sessions exist yet
+  Widget _buildFloatingActionButton(BuildContext context, Map<String, dynamic> group) {
     final sessionProvider = Provider.of<SessionProvider>(context, listen: false);
     final sessions = sessionProvider.getSessionsForGroup(groupId);
 
@@ -91,7 +102,6 @@ class GroupDetailsScreen extends StatelessWidget {
   void _showContributionSheet(BuildContext context, Map<String, dynamic> group) {
     final sessionProvider = Provider.of<SessionProvider>(context, listen: false);
     
-    // Get current ongoing session
     final sessions = sessionProvider.getSessionsForGroup(groupId);
     final currentSession = sessions.firstWhere((s) => s['status'] == 'Ongoing', orElse: () => {});
 
@@ -349,7 +359,6 @@ class _ChatTabState extends State<_ChatTab> {
     chatProvider.sendMessage(widget.groupId, _messageController.text.trim(), userName);
     _messageController.clear();
     
-    // Auto-scroll to bottom
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
